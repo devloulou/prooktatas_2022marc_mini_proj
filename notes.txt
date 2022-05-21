@@ -1,0 +1,6 @@
+1. lépés: megrpóbálom beazonosítani, hogy milyen modulokra van szükségem
+2. virtuálos környezet kialakítása
+
+adatbázis modul: psycopg2
+file műveletekre: pandas
+
