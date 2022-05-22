@@ -1,47 +1,92 @@
+import os
 import pandas as pd
 import numpy as np
 
-# Series, DataFrame, Panel
+from params import folder_path
+# 1. be kell adatbázis tölteni a file-ok tartalmát
+#   minden file egy külön tábla legyen
 
-# Series - adatbázis táblának 1 oszlopa -> 1 dimenziós tömb
-# DataFrame - adatbázis tábla - 2 dimenziós
+# létre kell hoznunk a táblákat
+#  táblák mezőire -> ezt elp kell állítnai
+#  minden mezőnek egy adatbázis típust kell "osztanunk" -> dinamikusan meg kell vizsgálnom az adatot
 
-# [[],[],[],
-# [],[],[],
-# [],[],[]]
+# le kellene gyártani minden táblához egy insert into utasítást
+# a futási logikát elő kellene állítani
 
-# Panel - 3 dimenziós tömb
+class FileHandler:
 
-csv_path = r"C:\WORK\Prooktatás\mini_project\data\circuits.csv"
+    def __init__(self):
+        self.table_name = None
+        self.data_types = None
 
-df = pd.read_csv(csv_path)
+    def get_data_from_csv(self, file_path):
+        return pd.read_csv(file_path)
 
-print(df.columns.to_list())
+    def get_files_list(self):
+        return os.listdir(folder_path)
 
-print(df.head(3))
+    def get_data_type(self, csv_data):
+        # mapping - dataframe object = postgesql text
+        cols_types = {}
+        for key, value in csv_data.dtypes.to_dict().items():
+            if value == 'object':
+                cols_types[key] = "text"
+            if value == 'int64':
+                cols_types[key] = "int"
+            if value == 'float64':
+                cols_types[key] = "numeric"
 
-print(df['circuitId'])
+            #print(f"{key} - {max(csv_data[key])}")
 
-print(df[['circuitId', 'circuitRef', 'circuitId', 'circuitRef', 'circuitId', 'circuitRef', 'circuitId', 'circuitRef']])
+        return cols_types
 
-#print(df['circuitId', 'circuitRef', 'circuitId', 'circuitRef', 'circuitId', 'circuitRef', 'circuitId', 'circuitRef'])
-#print(df[['circuitId', 'alt']])
+    def create_table_script(self):
+        create_table = f"create table if not exists {self.table_name} ("
+        for key, value in self.data_types.items():
+            create_table += f"{key} {value}, \n"
 
-print(df[['circuitId']])
-exit()
-def my_func(x):
-    return x * 2
+        create_table += "creation_date date default now() )"
+        return create_table
 
-print(df['circuitId'].apply(my_func))
+    def create_insert_script(self):
+        insert_script = f"insert into {self.table_name} "
+        insert_cols = "("
+        insert_values = " values ("
+        for idx, key in enumerate(self.data_types.keys()):
+            test = "%s"
+            # if len(data_types) - 1 > idx:
+            #     insert_cols += f"{key}, "
+            # else:
+            #     insert_cols += f"{key})"
+            insert_cols += f"{key}, " if len(self.data_types) - 1 > idx else f"{key})"
+            insert_values += f"%s, " if len(self.data_types) - 1 > idx else f"%s)"
 
-df['circuitId'] = df['circuitId'].apply(my_func)
+        insert_statement = insert_script + insert_cols + insert_values
+        return insert_statement
 
-df['ez_az_oszlop_neve'] = "ez_az_oszlop_ertéke"
 
-print(".----------------------------.")
+if __name__ == '__main__':
+    handler = FileHandler()
 
-print(df['circuitId'])
+    file_list = handler.get_files_list()
 
-print(".----------------------------.")
-print(".----------------------------.")
-print(df['ez_az_oszlop_neve'] )
+    for item in file_list:
+        file_path = os.path.join(folder_path, item)
+        data = handler.get_data_from_csv(file_path)
+
+        # create table script előállítása
+        """create table tábla_neve (mezo1 mezo_adattipus)"""
+        handler.table_name = item[:-4]
+        # típusosítás
+        handler.data_types = handler.get_data_type(data)
+
+        create_table = handler.create_table_script()
+        insert_script = handler.create_insert_script()
+
+        print(create_table)
+        print('-------------')
+        print(insert_script)
+        print("##########################################")
+        
+
+        
